@@ -26,10 +26,10 @@
 
 %token <integer> INTEGER
 %token <ide> IDENTIFIER
-%token WHILE IF PRINT  ELSE_IF COMMENTLINE OPENCOMMENT CLOSECOMMENT TRUE FALSE TYPE_BOOLEAN STR DINT FLOATING_POINT
-%token FUNCTION END_FUNCTION RETURN ELSE DO FOR TRY CATCH THEN SWITCH CASE BREAK CONTINUE ASSIGN
-%token  SCAN POW PLUS MINUS MULTIPLE DIVIDE MOD LESSTHAN GREATERTHAN INCREASE DECREASE
-%token COLON COMMA EQUALORGREAT EQUALORLESS EQUAL ISNOTEQUAL LOGICAL_AND_OPERATOR OR LEFT_PARENTHESIS RIGHT_PARENTHESIS LEFT_BRACE RIGHT_BRACE  LEFTSQRBR RIGHTSQRBR QUOTES
+%token WHILE IF PRINT  ELSE_IF END_WHILE COMMENTLINE OPENCOMMENT CLOSECOMMENT TRUE FALSE TYPE_BOOLEAN STR DINT FLOATING_POINT
+%token FUNCTION END_FUNCTION RETURN ELSE DO FOR END_FOR TRY CATCH THEN SWITCH CASE IMPORT BREAK CONTINUE ASSIGN
+%token  SCAN POW PLUS MINUS MULTIPLE DIVIDE MOD LESSTHAN GREATERTHAN NL INCREASE DECREASE
+%token COLON SEMICOLON COMMA EQUALORGREAT EQUALORLESS EQUAL ISNOTEQUAL LOGICAL_AND_OPERATOR OR LEFT_PARENTHESIS RIGHT_PARENTHESIS LEFT_BRACE RIGHT_BRACE  LEFTSQRBR RIGHTSQRBR QUOTES
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -58,7 +58,7 @@ stmt:
         COLON                        { $$ = opr(COLON, 2, NULL, NULL); }
         | expr COLON                 { $$ = $1; }
         | PRINT expr COLON           { $$ = opr(PRINT, 1, $2); }
-        | IDENTIFIER ASSIGN expr COLON  { $$ = opr('=', 2, id($1), $3); }
+        | IDENTIFIER ASSIGN expr COLON  { $$ = opr(ASSIGN, 2, id($1), $3); }
         | WHILE LEFT_PARENTHESIS expr RIGHT_PARENTHESIS stmt       { $$ = opr(WHILE, 2, $3, $5); } /* while op, stmt, c style while */ 
         | IF LEFT_PARENTHESIS expr RIGHT_PARENTHESIS stmt %prec IFX { $$ = opr(IF, 2, $3, $5); }
         | IF LEFT_PARENTHESIS expr RIGHT_PARENTHESIS stmt ELSE stmt { $$ = opr(IF, 3, $3, $5, $7); }
@@ -179,7 +179,7 @@ int ex(nodeType *p) {
                         return 0;
         case PRINT:     printf("%d\n", ex(p->opr.op[0])); return 0;
         case COLON:       ex(p->opr.op[0]); return ex(p->opr.op[1]);
-        case '=':       return sym[p->opr.op[0]->id.i] = ex(p->opr.op[1]);
+        case ASSIGN:       return sym[p->opr.op[0]->id.i] = ex(p->opr.op[1]);
         case UMINUS:    return -ex(p->opr.op[0]);
         case PLUS:       return ex(p->opr.op[0]) + ex(p->opr.op[1]);
         case MINUS:       return ex(p->opr.op[0]) - ex(p->opr.op[1]);
