@@ -10,10 +10,10 @@
     int globalScope = 0;
     void yyerror(char *);
 %}
-    
+
 %option yylineno
 WHITESPACE          [ \t\r\f\v]+
-%x COMMENT 
+%x COMMENT
 
 
 %%
@@ -25,12 +25,12 @@ WHITESPACE          [ \t\r\f\v]+
 <COMMENT>.|{WHITESPACE}     ;
 <COMMENT>\n                 ;
 <COMMENT>"*-"               {BEGIN INITIAL;}
-<COMMENT><<EOF>>            {yyterminate();}             
+<COMMENT><<EOF>>            {yyterminate();}
 "---".*                     {;}
 
 
-"True"              {return TRUE;}
-"False"             {return FALSE;}
+"True"              { yylval.integer = 1; return INTEGER; }
+"False"             { yylval.integer = 0; return INTEGER; }
 "bool"   	        {return TYPE_BOOLEAN;}
 "method"            {return FUNCTION;}
 "ENDF"		        {return END_FUNCTION;}
@@ -49,7 +49,7 @@ WHITESPACE          [ \t\r\f\v]+
 "option"		        {return CASE;}
 "break"		        {return BREAK;}
 "contiune"	        {return CONTINUE;}
-"write"	            {return PRINT;}  
+"write"	            {return PRINT;}
 "input"	            {return SCAN;}
 
 
@@ -85,10 +85,10 @@ WHITESPACE          [ \t\r\f\v]+
 0                           {yylval.integer = atoi(yytext); return INTEGER; }
 [1-9][0-9]*                 {yylval.integer = atoi(yytext); return INTEGER; }
 
-[a-zA-Z_][a-zA-Z0-9_]*     { 
-    strncpy(yylval.id_name, yytext, MAX_ID_LENGTH-1); 
-    yylval.id_name[MAX_ID_LENGTH-1] = '\0'; 
-    return IDENTIFIER; 
+[a-zA-Z_][a-zA-Z0-9_]*     {
+    strncpy(yylval.id_name, yytext, MAX_ID_LENGTH-1);
+    yylval.id_name[MAX_ID_LENGTH-1] = '\0';
+    return IDENTIFIER;
 }
 
 [-()<>=+*/;{}.]             {return *yytext; }

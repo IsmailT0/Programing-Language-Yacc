@@ -14,31 +14,21 @@ Variables must be declared with explicit types using the `::` operator:
 
 variableName :: value:
 
+_Bare in mind that MAX_ID_LENGTH 64 is 64_
+
+_Bare in mind that MAX_CALL_DEPTH is 100_
+
+_Bare in mind that MAX_SYMBOLS is 1000_
+
 _Supported primitive types:_
 
 - `int`: Integer values
-
-- `float`: Floating-point numbers
-
-- `string`: Text strings enclosed in single quotes
-
-- `ch`: Single character values enclosed in double quotes
-
 - `bool`: Boolean values (`True` or `False`)
-
-Bare in mind that naming of a variable may only have 1 character.
 
 _Examples:_
 
-- c :: 42:
-
-- d :: 3.14159:
-
-- n :: 'John Doe':
-
-- g :: "A":
-
-- i :: True:
+- numberVal :: 42:
+- boolVal :: True:
 
 ### Comments
 
@@ -190,4 +180,5 @@ To execute your program:
    make
 
    ./eon_parser < example.eon
+
 ```

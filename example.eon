@@ -1,67 +1,73 @@
 --- Varible declarations
 x :: 10:
 
-a::1:
-b::2:
-c::3:
-d::4:
-e::5:
-f::6:
-g::7:
-h::8:
-i::9:
-j::10:
+a :: 1:
+b :: 2:
+c :: 3:
+d :: 4:
+e :: 5:
+f :: 6:
+g :: 7:
+h :: 8:
+i :: 9:
+j :: 10:
 
 
 --- Loops
 
-cnloop(x){
-write(x):
-x::x-1:
+cnloop (x) {
+    write(x):
+    x::x-1:
 }
 
 
 --- Conditional Statements
 
 k::5:
-when(k>4){
+
+when (k > 4) {
     write(e):
     write(f):
     write(g):
     write(h):
     write(i):
     write(j):
-}otherwise{
+} otherwise {
     write(a):
     write(b):
     write(c):
 }
 
 
----inner Operations
+--- Inner Operations
 m::5:
-when(m>4){
+
+when (m > 4) {
+
     cnloop(m){
-    write(m):
-    m::m-1:
-}
-}otherwise{
+        write(m):
+        m::m-1:
+    }
+
+} otherwise {
     write(m):
 }
 
 
 
 m::2:
+
 when(m>4){
     cnloop(m){
-    write(m):
-    m::m-1:
-}
-}otherwise{
+        write(m):
+        m::m-1:
+    }
+
+} otherwise {
     write(m):
 }
 
----exception handling
+--- Exception handling
 
 try {
     a :: 10/0:  
@@ -73,8 +79,27 @@ try {
 
 try {
     x :: 12:
-}catch(1){
+} catch(1) {
     write(111):
-}finally{
+} finally {
     write(0):
 }
+
+--- Boolean Test
+
+val :: True:
+val_2 :: False:
+write(val && val_2):
+
+--- Function Test
+
+method fib(number) {
+    when(number <= 1) 
+        return 1:
+    otherwise
+        return number * fib(number-1):
+}
+ENDF
+
+eureka :: 5:
+write(fib(eureka)):
