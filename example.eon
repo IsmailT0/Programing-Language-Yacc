@@ -61,11 +61,20 @@ when(m>4){
     write(m):
 }
 
+---exception handling
 
 try {
-    a :: 10:  
+    a :: 10/0:  
 } catch(1) {      
     write(999):
 } finally {
     write(1000):   
+}
+
+try {
+    x :: 12:
+}catch(1){
+    write(111):
+}finally{
+    write(0):
 }
