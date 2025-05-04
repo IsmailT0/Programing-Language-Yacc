@@ -76,7 +76,7 @@ _Examples:_
 
 Functions are declared using the `method` keyword:
 
-method name(param :: type, param2 :: type) -> returnType { // function body return value: }
+method name(param) { // function body return value: } ENDF
 
 ### Operators
 
@@ -189,5 +189,5 @@ To execute your program:
 
    make
 
-   ./myprog < example.eon
+   ./eon_parser < example.eon
 ```

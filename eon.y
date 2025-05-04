@@ -3,17 +3,50 @@
     #include <stdlib.h>
     #include <stdarg.h>
     #include <setjmp.h>  /* For exception handling */
+    #include <string.h>  /* For function handling */
     #include "eon.h"
     #include "y.tab.h"
+
+    /* Function-related data structures */
+    #define MAX_FUNCTIONS 100
+    #define MAX_PARAMS 10
+    
+    typedef struct {
+        char name;               /* Single char function name */
+        nodeType *body;          /* Function body */
+        int param_count;         /* Number of parameters */
+        char params[MAX_PARAMS]; /* Parameter names (single chars) */
+    } Function;
+    
+    Function functions[MAX_FUNCTIONS];
+    int function_count = 0;
+    
+    /* Call stack for managing function calls */
+    #define MAX_CALL_DEPTH 100
+    int call_stack[MAX_CALL_DEPTH][26];  /* Store local vars for each stack frame */
+    int current_frame = -1;              /* Current stack frame */
+    int in_function_call = 0;            /* Flag to indicate if we're executing a function */
+    int return_value = 0;                /* Return value from function */
+    int has_returned = 0;                /* Flag to indicate if function has returned */
+    
+    /* Function to register a new function */
+    int register_function(char name, nodeType *body, int param_count, char *params);
+    
+    /* Function to find a function by name */
+    int find_function(char name);
+    
+    /* Function call handling */
+    int call_function(int func_idx, int arg_count, ...);
 
     nodeType *opr(int oper, int nops, ...);
     nodeType *id(int i);
     nodeType *con(int value);
+    nodeType *func_call(char name, nodeType *args);
     void freeNode(nodeType *p);
     int ex(nodeType *p);
     int yylex(void);
     void yyerror(char *s);
-    int sym[26];
+    int sym[26];  /* Global symbol table */
 
     /* Exception handling data structures */
     #define MAX_EXCEPTION_HANDLERS 20
@@ -78,18 +111,75 @@
 %left MULTIPLE DIVIDE
 %nonassoc UMINUS
 
-%type <nPtr> stmt expr stmt_list try_catch_stmt catch_clauses catch_clause finally_clause throw_stmt
+%type <nPtr> stmt expr stmt_list try_catch_stmt catch_clauses catch_clause finally_clause throw_stmt param_list args_list function_decl function_call return_stmt
 
 %%
 
 
 program:
-        function                { exit(0); }
+        function_defs           { exit(0); }
         ;
 
-function:
-          function stmt         { ex($2); freeNode($2); }
+function_defs:
+          function_defs function_decl  { /* Store function definition */ }
+        | function_defs stmt           { ex($2); freeNode($2); }
         |
+        ;
+
+function_decl:
+        FUNCTION IDENTIFIER LEFT_PARENTHESIS param_list RIGHT_PARENTHESIS LEFT_BRACE stmt_list RIGHT_BRACE END_FUNCTION
+        {
+            /* Extract parameter names from param_list */
+            char params[MAX_PARAMS];
+            int param_count = 0;
+            
+            nodeType *param = $4;
+            while (param && param->type == typeOpr && param->opr.oper == COMMA) {
+                /* Extract rightmost parameter first */
+                if (param->opr.op[1]->type == typeId) {
+                    params[param_count++] = param->opr.op[1]->id.i;
+                }
+                param = param->opr.op[0]; /* Move to next parameter */
+            }
+            /* Handle the last/only parameter */
+            if (param && param->type == typeId) {
+                params[param_count++] = param->id.i;
+            }
+            
+            /* Reverse parameter order since we extracted right-to-left */
+            for (int i = 0; i < param_count / 2; i++) {
+                char temp = params[i];
+                params[i] = params[param_count - i - 1];
+                params[param_count - i - 1] = temp;
+            }
+            
+            /* Register the function */
+            register_function($2, $7, param_count, params);
+            $$ = NULL; /* No execution result for function declaration */
+        }
+        ;
+
+param_list:
+        IDENTIFIER                      { $$ = id($1); }
+        | param_list COMMA IDENTIFIER   { $$ = opr(COMMA, 2, $1, id($3)); }
+        |                               { $$ = NULL; } /* Empty parameter list */
+        ;
+
+function_call:
+        IDENTIFIER LEFT_PARENTHESIS args_list RIGHT_PARENTHESIS
+        {
+            $$ = opr(FUNCTION, 2, id($1), $3); /* First arg is function name, second is args list */
+        }
+        ;
+
+args_list:
+        expr                    { $$ = $1; }
+        | args_list COMMA expr  { $$ = opr(COMMA, 2, $1, $3); }
+        |                       { $$ = NULL; } /* Empty args list */
+        ;
+
+return_stmt:
+        RETURN expr COLON       { $$ = opr(RETURN, 1, $2); }
         ;
 
 stmt:
@@ -104,6 +194,8 @@ stmt:
         | Comment stmt_list         {;}
         | try_catch_stmt            { $$ = $1; }
         | throw_stmt                { $$ = $1; }
+        | function_call COLON       { $$ = $1; }
+        | return_stmt               { $$ = $1; }
         ;
 
 /* Try-catch statement grammar rules */
@@ -151,11 +243,12 @@ expr:
         | expr DIVIDE expr              { $$ = opr(DIVIDE, 2, $1, $3); }
         | expr LESSTHAN expr            { $$ = opr(LESSTHAN, 2, $1, $3); }
         | expr GREATERTHAN expr         { $$ = opr(GREATERTHAN, 2, $1, $3); }
-    | expr EQUALORGREAT expr        { $$ = opr(EQUALORGREAT, 2, $1, $3); }
-    | expr EQUALORLESS expr          { $$ = opr(EQUALORLESS, 2, $1, $3); }
+        | expr EQUALORGREAT expr        { $$ = opr(EQUALORGREAT, 2, $1, $3); }
+        | expr EQUALORLESS expr         { $$ = opr(EQUALORLESS, 2, $1, $3); }
         | expr ISNOTEQUAL expr          { $$ = opr(ISNOTEQUAL, 2, $1, $3); }
-        | expr EQUAL expr          { $$ = opr(EQUAL, 2, $1, $3); }
-        | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS          { $$ = $2; }
+        | expr EQUAL expr               { $$ = opr(EQUAL, 2, $1, $3); }
+        | function_call                 { $$ = $1; }
+        | LEFT_PARENTHESIS expr RIGHT_PARENTHESIS  { $$ = $2; }
         ;
 
 %%
@@ -203,6 +296,42 @@ nodeType *opr(int oper, int nops, ...) {
     return p;
 }
 
+/* Register a new function */
+int register_function(char name, nodeType *body, int param_count, char *params) {
+    if (function_count >= MAX_FUNCTIONS) {
+        fprintf(stderr, "Too many functions defined\n");
+        exit(1);
+    }
+    
+    /* Check if function already exists */
+    int existing = find_function(name);
+    if (existing >= 0) {
+        fprintf(stderr, "Function %c already defined\n", name);
+        exit(1);
+    }
+    
+    functions[function_count].name = name;
+    functions[function_count].body = body;
+    functions[function_count].param_count = param_count;
+    
+    for (int i = 0; i < param_count; i++) {
+        functions[function_count].params[i] = params[i];
+    }
+    
+    function_count++;
+    return function_count - 1;
+}
+
+/* Find function by name */
+int find_function(char name) {
+    for (int i = 0; i < function_count; i++) {
+        if (functions[i].name == name) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 void freeNode(nodeType *p) {
     int i;
 
@@ -227,14 +356,27 @@ int ex(nodeType *p) {
     int handler_index;
     int exception_caught;
     int exception_value;
-    int result;
-    int i, exception_type;
+    int result, func_idx;
+    int i, j, exception_type;
+    int arg_values[MAX_PARAMS];
+    int arg_count;
+    nodeType *arg;
 
     if (!p) return 0;
     
+    /* Check if we've already returned from a function */
+    if (in_function_call && has_returned) {
+        return 0;
+    }
+    
     switch(p->type) {
     case typeCon:       return p->con.value;
-    case typeId:        return sym[p->id.i];
+    case typeId:        
+        /* Read from local frame if in function call, otherwise from global */
+        if (in_function_call && current_frame >= 0) {
+            return call_stack[current_frame][p->id.i];
+        }
+        return sym[p->id.i];
     case typeOpr:
         switch(p->opr.oper) {
         case WHILE:     while(ex(p->opr.op[0])) ex(p->opr.op[1]); return 0;
@@ -245,7 +387,12 @@ int ex(nodeType *p) {
                         return 0;
         case PRINT:     printf("%d\n", ex(p->opr.op[0])); return 0;
         case COLON:     ex(p->opr.op[0]); return ex(p->opr.op[1]);
-        case ASSIGN:    return sym[p->opr.op[0]->id.i] = ex(p->opr.op[1]);
+        case ASSIGN:    
+            /* Store to local frame if in function call, otherwise to global */
+            if (in_function_call && current_frame >= 0) {
+                return call_stack[current_frame][p->opr.op[0]->id.i] = ex(p->opr.op[1]);
+            }
+            return sym[p->opr.op[0]->id.i] = ex(p->opr.op[1]);
         case UMINUS:    return -ex(p->opr.op[0]);
         case PLUS:      return ex(p->opr.op[0]) + ex(p->opr.op[1]);
         case MINUS:     return ex(p->opr.op[0]) - ex(p->opr.op[1]);
@@ -264,6 +411,95 @@ int ex(nodeType *p) {
         case EQUALORLESS: return ex(p->opr.op[0]) <= ex(p->opr.op[1]);
         case ISNOTEQUAL: return ex(p->opr.op[0]) != ex(p->opr.op[1]);
         case EQUAL:     return ex(p->opr.op[0]) == ex(p->opr.op[1]);
+        
+        case FUNCTION:  /* Function call */
+            {
+                /* Get function index */
+                char func_name = p->opr.op[0]->id.i;
+                func_idx = find_function(func_name);
+                if (func_idx < 0) {
+                    fprintf(stderr, "Function %c not found\n", func_name);
+                    exit(1);
+                }
+                
+                /* Evaluate and collect arguments */
+                arg_count = 0;
+                
+                /* Process argument list */
+                if (p->opr.nops > 1 && p->opr.op[1]) {
+                    nodeType *args = p->opr.op[1];
+                    
+                    /* Handle single argument case */
+                    if (args->type != typeOpr || args->opr.oper != COMMA) {
+                        arg_values[arg_count++] = ex(args);
+                    } else {
+                        /* Process comma-separated arguments recursively */
+                        nodeType *current = args;
+                        int temp_args[MAX_PARAMS];
+                        int temp_count = 0;
+                        
+                        /* Collect arguments (they come in reverse order) */
+                        while (current && current->type == typeOpr && current->opr.oper == COMMA) {
+                            temp_args[temp_count++] = ex(current->opr.op[1]);
+                            current = current->opr.op[0];
+                        }
+                        
+                        /* Add the first/last argument */
+                        if (current) {
+                            temp_args[temp_count++] = ex(current);
+                        }
+                        
+                        /* Add arguments in correct order */
+                        for (i = temp_count - 1; i >= 0; i--) {
+                            arg_values[arg_count++] = temp_args[i];
+                        }
+                    }
+                }
+                
+                /* Check if argument count matches parameter count */
+                if (arg_count != functions[func_idx].param_count) {
+                    fprintf(stderr, "Function %c expects %d arguments but got %d\n", 
+                            func_name, functions[func_idx].param_count, arg_count);
+                    exit(1);
+                }
+                
+                /* Set up new stack frame */
+                if (current_frame >= MAX_CALL_DEPTH - 1) {
+                    fprintf(stderr, "Call stack overflow\n");
+                    exit(1);
+                }
+                current_frame++;
+                in_function_call = 1;
+                has_returned = 0;
+                
+                /* Initialize local variables for parameters */
+                for (i = 0; i < arg_count; i++) {
+                    call_stack[current_frame][functions[func_idx].params[i]] = arg_values[i];
+                }
+                
+                /* Execute function body */
+                ex(functions[func_idx].body);
+                
+                /* Clean up stack frame */
+                in_function_call = (current_frame > 0); /* Still in a function if frames remain */
+                current_frame--;
+                
+                /* Return function result */
+                has_returned = 0; /* Reset return flag for next call */
+                return return_value;
+            }
+            
+        case RETURN:    
+            /* Handle return statement */
+            if (in_function_call) {
+                return_value = ex(p->opr.op[0]);
+                has_returned = 1;
+                return return_value;
+            } else {
+                fprintf(stderr, "Return statement outside of function\n");
+                exit(1);
+            }
+            return 0;
             
         /* Exception handling implementation */
         case TRY:
