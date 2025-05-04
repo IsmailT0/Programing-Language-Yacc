@@ -2,8 +2,8 @@
     #include <stdio.h>
     #include <stdlib.h>
     #include <stdarg.h>
-    #include <setjmp.h>  /* For exception handling */
-    #include <string.h>  /* For function handling */
+    #include <setjmp.h>  
+    #include <string.h> 
     #include "eon.h"
     #include "y.tab.h"
 
@@ -12,46 +12,82 @@
     #define MAX_PARAMS 10
     
     typedef struct {
-        char name;               /* Single char function name */
-        nodeType *body;          /* Function body */
-        int param_count;         /* Number of parameters */
-        char params[MAX_PARAMS]; /* Parameter names (single chars) */
+        char name[MAX_ID_LENGTH];                
+        nodeType *body;                          
+        int param_count;                        
+        char params[MAX_PARAMS][MAX_ID_LENGTH];  
     } Function;
     
+    /* Global variable definitions (for external declarations in eon.h) */
+    Symbol global_symbols[MAX_SYMBOLS];
+    Symbol call_stack[MAX_CALL_DEPTH][MAX_SYMBOLS];
+    int symbol_count = 0;
+    int local_symbol_count[MAX_CALL_DEPTH];
     Function functions[MAX_FUNCTIONS];
     int function_count = 0;
     
-    /* Call stack for managing function calls */
-    #define MAX_CALL_DEPTH 100
-    int call_stack[MAX_CALL_DEPTH][26];  /* Store local vars for each stack frame */
-    int current_frame = -1;              /* Current stack frame */
-    int in_function_call = 0;            /* Flag to indicate if we're executing a function */
-    int return_value = 0;                /* Return value from function */
-    int has_returned = 0;                /* Flag to indicate if function has returned */
-    
+    /* Call stack management */
+    int current_frame = -1;              
+    int in_function_call = 0;            
+    int return_value = 0;                
+    int has_returned = 0;                
+
     /* Function to register a new function */
-    int register_function(char name, nodeType *body, int param_count, char *params);
-    
+    int register_function(char *name, nodeType *body, int param_count, char params[][MAX_ID_LENGTH]);
+
     /* Function to find a function by name */
-    int find_function(char name);
+    int find_function(char *name);
     
     /* Function call handling */
     int call_function(int func_idx, int arg_count, ...);
 
     nodeType *opr(int oper, int nops, ...);
-    nodeType *id(int i);
+    nodeType *id(char *name);
     nodeType *con(int value);
-    nodeType *func_call(char name, nodeType *args);
+    
+    nodeType *func_call(char *name, nodeType *args);
     void freeNode(nodeType *p);
     int ex(nodeType *p);
     int yylex(void);
     void yyerror(char *s);
-    int sym[26];  /* Global symbol table */
 
     /* Exception handling data structures */
     #define MAX_EXCEPTION_HANDLERS 20
     ExceptionHandler exception_handlers[MAX_EXCEPTION_HANDLERS];
     int current_handler = -1;
+
+    /* Implementation of get_symbol_index declared in eon.h */
+    int get_symbol_index(char* name, int is_local) {
+        Symbol* table;
+        int* count;
+        
+        if (is_local && current_frame >= 0) {
+            table = call_stack[current_frame];
+            count = &local_symbol_count[current_frame];
+        } else {
+            table = global_symbols;
+            count = &symbol_count;
+        }
+        
+        // Look for existing symbol
+        for (int i = 0; i < *count; i++) {
+            if (strcmp(table[i].name, name) == 0) {
+                return i;
+            }
+        }
+        
+        // Add new symbol
+        if (*count < MAX_SYMBOLS) {
+            strncpy(table[*count].name, name, MAX_ID_LENGTH-1);
+            table[*count].name[MAX_ID_LENGTH-1] = '\0';
+            table[*count].value = 0;  // Initialize to 0
+            return (*count)++;
+        }
+        
+        fprintf(stderr, "Symbol table full\n");
+        exit(1);
+        return -1;
+    }
 
     /* Push/pop exception handlers */
     int push_handler() {
@@ -88,13 +124,13 @@
 
 %union {
     int integer;                 
-    char ide;               
+    char id_name[MAX_ID_LENGTH];
     nodeType *nPtr;             
 };
 
 
 %token <integer> INTEGER
-%token <ide> IDENTIFIER
+%token <id_name> IDENTIFIER
 %token WHILE IF PRINT  ELSE_IF END_WHILE COMMENTLINE OPENCOMMENT CLOSECOMMENT TRUE FALSE TYPE_BOOLEAN STR DINT FLOATING_POINT
 %token FUNCTION END_FUNCTION RETURN ELSE DO FOR END_FOR SWITCH CASE IMPORT BREAK CONTINUE ASSIGN
 %token SCAN POW PLUS MINUS MULTIPLE DIVIDE MOD LESSTHAN GREATERTHAN NL INCREASE DECREASE
@@ -130,27 +166,30 @@ function_decl:
         FUNCTION IDENTIFIER LEFT_PARENTHESIS param_list RIGHT_PARENTHESIS LEFT_BRACE stmt_list RIGHT_BRACE END_FUNCTION
         {
             /* Extract parameter names from param_list */
-            char params[MAX_PARAMS];
+            char params[MAX_PARAMS][MAX_ID_LENGTH];
             int param_count = 0;
             
             nodeType *param = $4;
             while (param && param->type == typeOpr && param->opr.oper == COMMA) {
                 /* Extract rightmost parameter first */
                 if (param->opr.op[1]->type == typeId) {
-                    params[param_count++] = param->opr.op[1]->id.i;
+                    strncpy(params[param_count++], param->opr.op[1]->id.name, MAX_ID_LENGTH-1);
+                    params[param_count-1][MAX_ID_LENGTH-1] = '\0';
                 }
                 param = param->opr.op[0]; /* Move to next parameter */
             }
             /* Handle the last/only parameter */
             if (param && param->type == typeId) {
-                params[param_count++] = param->id.i;
+                strncpy(params[param_count++], param->id.name, MAX_ID_LENGTH-1);
+                params[param_count-1][MAX_ID_LENGTH-1] = '\0';
             }
             
             /* Reverse parameter order since we extracted right-to-left */
             for (int i = 0; i < param_count / 2; i++) {
-                char temp = params[i];
-                params[i] = params[param_count - i - 1];
-                params[param_count - i - 1] = temp;
+                char temp[MAX_ID_LENGTH];
+                strncpy(temp, params[i], MAX_ID_LENGTH);
+                strncpy(params[i], params[param_count - i - 1], MAX_ID_LENGTH);
+                strncpy(params[param_count - i - 1], temp, MAX_ID_LENGTH);
             }
             
             /* Register the function */
@@ -266,14 +305,16 @@ nodeType *con(int value) {
     return p;
 }
 
-nodeType *id(int i) {
+nodeType *id(char *name) {
     nodeType *p;
 
     if ((p = malloc(sizeof(nodeType))) == NULL)
         yyerror("out of memory");
 
     p->type = typeId;
-    p->id.i = i;
+    p->id.i = get_symbol_index(name, in_function_call);
+    strncpy(p->id.name, name, MAX_ID_LENGTH-1);
+    p->id.name[MAX_ID_LENGTH-1] = '\0';
 
     return p;
 }
@@ -296,8 +337,7 @@ nodeType *opr(int oper, int nops, ...) {
     return p;
 }
 
-/* Register a new function */
-int register_function(char name, nodeType *body, int param_count, char *params) {
+int register_function(char *name, nodeType *body, int param_count, char params[][MAX_ID_LENGTH]) {
     if (function_count >= MAX_FUNCTIONS) {
         fprintf(stderr, "Too many functions defined\n");
         exit(1);
@@ -306,26 +346,27 @@ int register_function(char name, nodeType *body, int param_count, char *params) 
     /* Check if function already exists */
     int existing = find_function(name);
     if (existing >= 0) {
-        fprintf(stderr, "Function %c already defined\n", name);
+        fprintf(stderr, "Function %s already defined\n", name);
         exit(1);
     }
     
-    functions[function_count].name = name;
+    strncpy(functions[function_count].name, name, MAX_ID_LENGTH-1);
+    functions[function_count].name[MAX_ID_LENGTH-1] = '\0';
     functions[function_count].body = body;
     functions[function_count].param_count = param_count;
     
     for (int i = 0; i < param_count; i++) {
-        functions[function_count].params[i] = params[i];
+        strncpy(functions[function_count].params[i], params[i], MAX_ID_LENGTH-1);
+        functions[function_count].params[i][MAX_ID_LENGTH-1] = '\0';
     }
     
     function_count++;
     return function_count - 1;
 }
 
-/* Find function by name */
-int find_function(char name) {
+int find_function(char *name) {
     for (int i = 0; i < function_count; i++) {
-        if (functions[i].name == name) {
+        if (strcmp(functions[i].name, name) == 0) {
             return i;
         }
     }
@@ -348,6 +389,14 @@ void yyerror(char *s) {
 }
 
 int main(void) {
+    // Initialize global symbol count
+    symbol_count = 0;
+    
+    // Initialize all local symbol counts to 0
+    for (int i = 0; i < MAX_CALL_DEPTH; i++) {
+        local_symbol_count[i] = 0;
+    }
+    
     yyparse();
     return 0;
 }
@@ -374,9 +423,11 @@ int ex(nodeType *p) {
     case typeId:        
         /* Read from local frame if in function call, otherwise from global */
         if (in_function_call && current_frame >= 0) {
-            return call_stack[current_frame][p->id.i];
+            int idx = get_symbol_index(p->id.name, 1); // Try local first
+            return call_stack[current_frame][idx].value;
         }
-        return sym[p->id.i];
+        int idx = get_symbol_index(p->id.name, 0);
+        return global_symbols[idx].value;
     case typeOpr:
         switch(p->opr.oper) {
         case WHILE:     while(ex(p->opr.op[0])) ex(p->opr.op[1]); return 0;
@@ -390,9 +441,12 @@ int ex(nodeType *p) {
         case ASSIGN:    
             /* Store to local frame if in function call, otherwise to global */
             if (in_function_call && current_frame >= 0) {
-                return call_stack[current_frame][p->opr.op[0]->id.i] = ex(p->opr.op[1]);
+                int idx = get_symbol_index(p->opr.op[0]->id.name, 1); // 1 means local
+                return call_stack[current_frame][idx].value = ex(p->opr.op[1]);
+            } else {
+                int idx = get_symbol_index(p->opr.op[0]->id.name, 0); // 0 means global
+                return global_symbols[idx].value = ex(p->opr.op[1]);
             }
-            return sym[p->opr.op[0]->id.i] = ex(p->opr.op[1]);
         case UMINUS:    return -ex(p->opr.op[0]);
         case PLUS:      return ex(p->opr.op[0]) + ex(p->opr.op[1]);
         case MINUS:     return ex(p->opr.op[0]) - ex(p->opr.op[1]);
@@ -412,53 +466,57 @@ int ex(nodeType *p) {
         case ISNOTEQUAL: return ex(p->opr.op[0]) != ex(p->opr.op[1]);
         case EQUAL:     return ex(p->opr.op[0]) == ex(p->opr.op[1]);
         
-        case FUNCTION:  /* Function call */
+        case FUNCTION: 
             {
-                /* Get function index */
-                char func_name = p->opr.op[0]->id.i;
+                char *func_name = p->opr.op[0]->id.name;
                 func_idx = find_function(func_name);
                 if (func_idx < 0) {
-                    fprintf(stderr, "Function %c not found\n", func_name);
+                    fprintf(stderr, "Function %s not found\n", func_name);
                     exit(1);
                 }
                 
                 /* Evaluate and collect arguments */
                 arg_count = 0;
                 
-                /* Process argument list */
+                /* Process argument list - keep this part as it is */
                 if (p->opr.nops > 1 && p->opr.op[1]) {
-                    nodeType *args = p->opr.op[1];
-                    
-                    /* Handle single argument case */
-                    if (args->type != typeOpr || args->opr.oper != COMMA) {
-                        arg_values[arg_count++] = ex(args);
+                    /* Process a single argument */
+                    if (p->opr.op[1]->type != typeOpr || p->opr.op[1]->opr.oper != COMMA) {
+                        arg_values[arg_count++] = ex(p->opr.op[1]);
                     } else {
-                        /* Process comma-separated arguments recursively */
-                        nodeType *current = args;
-                        int temp_args[MAX_PARAMS];
-                        int temp_count = 0;
-                        
-                        /* Collect arguments (they come in reverse order) */
-                        while (current && current->type == typeOpr && current->opr.oper == COMMA) {
-                            temp_args[temp_count++] = ex(current->opr.op[1]);
-                            current = current->opr.op[0];
+                        /* Process comma-separated arguments */
+                        nodeType *args = p->opr.op[1];
+                        /* Process the rightmost argument first */
+                        if (args->opr.nops > 1 && args->opr.op[1]) {
+                            arg_values[arg_count++] = ex(args->opr.op[1]);
                         }
-                        
-                        /* Add the first/last argument */
-                        if (current) {
-                            temp_args[temp_count++] = ex(current);
+                        /* Then process any remaining arguments (recursively through COMMA nodes) */
+                        while (args->opr.op[0]->type == typeOpr && args->opr.op[0]->opr.oper == COMMA) {
+                            args = args->opr.op[0];
+                            if (args->opr.nops > 1 && args->opr.op[1]) {
+                                /* Shift existing values to make room for new ones at the beginning */
+                                for (i = arg_count; i > 0; i--) {
+                                    arg_values[i] = arg_values[i-1];
+                                }
+                                arg_values[0] = ex(args->opr.op[1]);
+                                arg_count++;
+                            }
                         }
-                        
-                        /* Add arguments in correct order */
-                        for (i = temp_count - 1; i >= 0; i--) {
-                            arg_values[arg_count++] = temp_args[i];
+                        /* Process the leftmost argument */
+                        if (args->opr.op[0]) {
+                            /* Shift existing values to make room for new ones at the beginning */
+                            for (i = arg_count; i > 0; i--) {
+                                arg_values[i] = arg_values[i-1];
+                            }
+                            arg_values[0] = ex(args->opr.op[0]);
+                            arg_count++;
                         }
                     }
                 }
                 
                 /* Check if argument count matches parameter count */
                 if (arg_count != functions[func_idx].param_count) {
-                    fprintf(stderr, "Function %c expects %d arguments but got %d\n", 
+                    fprintf(stderr, "Function %s expects %d arguments but got %d\n", 
                             func_name, functions[func_idx].param_count, arg_count);
                     exit(1);
                 }
@@ -468,13 +526,18 @@ int ex(nodeType *p) {
                     fprintf(stderr, "Call stack overflow\n");
                     exit(1);
                 }
+                
                 current_frame++;
                 in_function_call = 1;
                 has_returned = 0;
                 
+                /* Initialize local symbol count for new frame */
+                local_symbol_count[current_frame] = 0;
+                
                 /* Initialize local variables for parameters */
                 for (i = 0; i < arg_count; i++) {
-                    call_stack[current_frame][functions[func_idx].params[i]] = arg_values[i];
+                    int idx = get_symbol_index(functions[func_idx].params[i], 1); // 1 means local
+                    call_stack[current_frame][idx].value = arg_values[i];
                 }
                 
                 /* Execute function body */

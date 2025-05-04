@@ -5,7 +5,7 @@
     int multiline_comment_start = 0;
     char currentType[32];
     char currentID[32];
-    char currentValue[32]; //int,char,double,bool
+    char currentValue[32];
     char currentOp[10];
     int globalScope = 0;
     void yyerror(char *);
@@ -24,9 +24,9 @@ WHITESPACE          [ \t\r\f\v]+
 
 <COMMENT>.|{WHITESPACE}     ;
 <COMMENT>\n                 ;
-<COMMENT>"*-"               {BEGIN INITIAL; printf("multiline comment end line %d\n", yylineno);}
-<COMMENT><<EOF>>            {printf("Line %d multiline comment not terminated\n", multiline_comment_start); yyterminate();}             
-"---".*                      {printf("single line comment at line %d\n", yylineno);}
+<COMMENT>"*-"               {BEGIN INITIAL;}
+<COMMENT><<EOF>>            {yyterminate();}             
+"---".*                     {;}
 
 
 "True"              {return TRUE;}
@@ -84,7 +84,13 @@ WHITESPACE          [ \t\r\f\v]+
 
 0                           {yylval.integer = atoi(yytext); return INTEGER; }
 [1-9][0-9]*                 {yylval.integer = atoi(yytext); return INTEGER; }
-[a-zA-Z_]                   { yylval.ide = *yytext - 'a'; return IDENTIFIER; }
+
+[a-zA-Z_][a-zA-Z0-9_]*     { 
+    strncpy(yylval.id_name, yytext, MAX_ID_LENGTH-1); 
+    yylval.id_name[MAX_ID_LENGTH-1] = '\0'; 
+    return IDENTIFIER; 
+}
+
 [-()<>=+*/;{}.]             {return *yytext; }
 [ \t\n]		                ;
 .		                    yyerror("Unknown character");

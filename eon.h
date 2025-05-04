@@ -1,4 +1,11 @@
 #include <setjmp.h>  /* For exception handling */
+#include <string.h>  /* For string functions like strcmp */
+#include <stdio.h>   /* For fprintf */
+#include <stdlib.h>  /* For exit */
+
+#define MAX_ID_LENGTH 64
+#define MAX_CALL_DEPTH 100
+#define MAX_SYMBOLS 1000
 
 typedef enum { typeCon, typeId, typeOpr } nodeEnum;
 
@@ -7,7 +14,8 @@ typedef struct {
 } conNodeType;
 
 typedef struct {
-    int i;                     
+    int i;                      /* For backward compatibility - index */
+    char name[MAX_ID_LENGTH];   /* Actual identifier name */
 } idNodeType;
 
 typedef struct {
@@ -17,7 +25,7 @@ typedef struct {
 } oprNodeType;
 
 typedef struct nodeTypeTag {
-    nodeEnum type;              /* <<< nodun tipi */
+    nodeEnum type;              /* Type of node */
 
     union {
         conNodeType con;        /* constants */
@@ -34,12 +42,22 @@ typedef struct {
     int active;          /* Whether this handler is active */
 } ExceptionHandler;
 
-/* Exception type constants */
+typedef struct {
+    char name[MAX_ID_LENGTH];
+    int value;
+} Symbol;
+
+/* External declarations - not definitions */
+extern Symbol global_symbols[MAX_SYMBOLS];
+extern int symbol_count;
+extern Symbol call_stack[MAX_CALL_DEPTH][MAX_SYMBOLS]; 
+extern int local_symbol_count[MAX_CALL_DEPTH];
+extern int current_frame;
+
+extern int get_symbol_index(char* name, int is_local);
+
 #define ARITHMETIC_EXCEPTION 1  /* Exception type for arithmetic errors like division by zero */
 
-/* Exception handling function declarations */
 int push_handler();
 void pop_handler();
 void throw_exception(int type, int value);
-
-extern int sym[26];
