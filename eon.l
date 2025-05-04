@@ -1,16 +1,16 @@
 %{
-#include <stdlib.h>
-#include "eon.h"
-#include "y.tab.h"
-int multiline_comment_start = 0;
-char currentType[32];
-char currentID[32];
-char currentValue[32]; //int,char,double,bool
-char currentOp[10];
-int globalScope = 0;
-void yyerror(char *);
+    #include <stdlib.h>
+    #include "eon.h"
+    #include "y.tab.h"
+    int multiline_comment_start = 0;
+    char currentType[32];
+    char currentID[32];
+    char currentValue[32]; //int,char,double,bool
+    char currentOp[10];
+    int globalScope = 0;
+    void yyerror(char *);
 %}
-
+    
 %option yylineno
 WHITESPACE          [ \t\r\f\v]+
 %x COMMENT 
@@ -42,7 +42,9 @@ WHITESPACE          [ \t\r\f\v]+
 "ctloop"		    {return FOR;}
 "try"		        {return TRY;}
 "catch"		        {return CATCH;}
-"finally"		    {return THEN;}
+"finally"		    {return FINALLY;}
+"throw"             {return THROW;}
+"ArithmeticException" {yylval.integer = ARITHMETIC_EXCEPTION; return INTEGER;}
 "select"	        {return SWITCH;}
 "option"		        {return CASE;}
 "break"		        {return BREAK;}

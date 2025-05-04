@@ -1,2 +1,71 @@
+--- Varible declarations
+x :: 10:
+
 a::1:
-write(a):
+b::2:
+c::3:
+d::4:
+e::5:
+f::6:
+g::7:
+h::8:
+i::9:
+j::10:
+
+
+--- Loops
+
+cnloop(x){
+write(x):
+x::x-1:
+}
+
+
+--- Conditional Statements
+
+k::5:
+when(k>4){
+    write(e):
+    write(f):
+    write(g):
+    write(h):
+    write(i):
+    write(j):
+}otherwise{
+    write(a):
+    write(b):
+    write(c):
+}
+
+
+---inner Operations
+m::5:
+when(m>4){
+    cnloop(m){
+    write(m):
+    m::m-1:
+}
+}otherwise{
+    write(m):
+}
+
+
+
+m::2:
+when(m>4){
+    cnloop(m){
+    write(m):
+    m::m-1:
+}
+}otherwise{
+    write(m):
+}
+
+
+try {
+    a :: 10:  
+} catch(1) {      
+    write(999):
+} finally {
+    write(1000):   
+}
