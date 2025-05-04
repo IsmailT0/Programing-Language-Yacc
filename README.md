@@ -30,6 +30,8 @@ _Examples:_
 - numberVal :: 42:
 - boolVal :: True:
 
+Bare in my that True and Falses are basically one and zero.
+
 ### Comments
 
 - Single-line comments: Begin with `---`
