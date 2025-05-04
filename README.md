@@ -1,13 +1,10 @@
 # EON Programming Language
-  
 
 **Group Members**: İsmail Temüroğlu, Can Dündar, Emre Topcu, Ömer Lütfi Duran
-  
 
 ## Language Overview
 
 EON is a statically-typed programming language with a clean syntax that emphasizes readability and explicit type declarations. It features unique control flow keywords, specialized operators, and a distinctive statement termination approach using colons.
-
 
 ## Syntax & Features
 
@@ -15,9 +12,9 @@ EON is a statically-typed programming language with a clean syntax that emphasiz
 
 Variables must be declared with explicit types using the `::` operator:
 
-variableName :: type = value:
+variableName :: value:
 
-*Supported primitive types:*
+_Supported primitive types:_
 
 - `int`: Integer values
 
@@ -29,36 +26,19 @@ variableName :: type = value:
 
 - `bool`: Boolean values (`True` or `False`)
 
-  
+Bare in mind that naming of a variable may only have 1 character.
 
-*Examples:*
+_Examples:_
 
-- count :: int = 42:
+- c :: 42:
 
-- pi :: float = 3.14159:
+- d :: 3.14159:
 
-- name :: string = 'John Doe':
+- n :: 'John Doe':
 
-- grade :: ch = "A":
+- g :: "A":
 
-- isValid :: bool = True:
-
-  
-  
-
-### Constants
-
-Constants are declared using the `CON` keyword:
-
-- CON NAME :: type = value:
-
-Example:
-
-CON PI :: float = 3.14159: CON MAX_SIZE :: int = 100:
-
-  
-  
-  
+- i :: True:
 
 ### Comments
 
@@ -68,35 +48,29 @@ CON PI :: float = 3.14159: CON MAX_SIZE :: int = 100:
 
 - Multi-line comments: Enclosed between `-*` and `*-`
 
--* This is a multi-line comment *-
-
-  
-  
-  
+-_ This is a multi-line comment _-
 
 ### Control Structures
 
 #### Conditional Statements
 
-- `when` / `otherwise`: Similar to if/else: 
+- `when` / `otherwise`: Similar to if/else:
 
-	- when (condition) { // code } otherwise { // code }
+  - when (condition) { // code } otherwise { // code }
 
 - `unless`: Opposite of `when`, executes if condition is false:
 
-	- unless (condition) { // code }
+  - unless (condition) { // code }
 
-
-#### Loops 
+#### Loops
 
 - `ctloop` (count loop): Similar to a for loop
 
-	- ctloop (initialization: condition: update) { // code }
+  - ctloop (initialization: condition: update) { // code }
 
 - `cnloop` (continue loop): Similar to a while loop
 
-	- cnloop (condition) { // code }
-
+  - cnloop (condition) { // code }
 
 ### Functions
 
@@ -104,19 +78,8 @@ Functions are declared using the `method` keyword:
 
 method name(param :: type, param2 :: type) -> returnType { // function body return value: }
 
-
-### Arrays
-
-Arrays are declared with square brackets:
-
-arrayName :: type[size] = [value1, value2, ...]:
-
-Example:
-
-numbers :: int[5] = [1, 2, 3, 4, 5]:
-  
-
 ### Operators
+
 - Arithmetic: `+`, `-`, `*`, `/`, `++`, `--`
 
 - Assignment: `=`, `+=`, `-=`, `*=`, `/=`
@@ -127,165 +90,102 @@ numbers :: int[5] = [1, 2, 3, 4, 5]:
 
 - Bitwise: `&` (AND), `|` (OR), `^` (XOR)
 
-  
-
 ### Input/Output
+
 - Output: `write(expression)`
 
 - Input: `input()`
 
-
 ### Statement Termination
-All statements end with a colon `:` rather than a semicolon.
 
+All statements end with a colon `:` rather than a semicolon.
 
 ## Sample Code
 
 ```eon
-method calculateArea(radius :: float) -> float {
-    return PI * radius * radius:
+when (k > 4) {
+    write(5):
+    write(6):
+    write(7):
+    write(8):
+    write(9):
+    write(10):
+
+} otherwise {
+    write(1):
+    write(2):
+    write(3):
 }
 ```
 
-  
-
-```eon
-method main() -> int {
-
-    num :: int = 42:
-    
-    when (num > 0) {
-        write('Positive number'):
-    } otherwise {
-        write('Non-positive number'):
-    }
-
-    ctloop (i :: int = 0: i < 10: i++) {
-        write(i):
-    }
-
-    return 0:
-}
-```
-
-  
 ## BNF Grammer
-`<program>` ::= `<statement>`*
 
-`<statement>` ::= `<variable-declaration>` 
-                    | `<constant-declaration>` 
-                    | `<function-declaration>` 
-                    | `<control-structure>`
-                    | `<expression-statement>`
-                    | `<return-statement>` 
-                    | `<io-statement>`
-                    | `<comment>`
+`<program>` ::= `<function>`
 
-`<variable-declaration>` ::= `<identifier>` "::" `<type>` "=" `<expression>` ":"
+`<function>` ::= `<function>` `<stmt>` | ε
 
-`<constant-declaration>` ::= "CON" `<identifier>` "::" `<type>` "=" `<expression>` ":"
+`<stmt>` ::=
+COLON
+| `<expr>` COLON
+| PRINT `<expr>` COLON
+| IDENTIFIER ASSIGN `<expr>` COLON
+| WHILE LEFT_PARENTHESIS `<expr>` RIGHT_PARENTHESIS `<stmt>`
+| IF LEFT_PARENTHESIS `<expr>` RIGHT_PARENTHESIS `<stmt>`
+| IF LEFT_PARENTHESIS `<expr>` RIGHT_PARENTHESIS `<stmt>` ELSE `<stmt>`
+| LEFT_BRACE `<stmt_list>` RIGHT_BRACE
+| `<comment>` `<stmt_list>`
+| `<try_catch_stmt>`
+| `<throw_stmt>`
 
-`<type>` ::= "int" | "float" | "string" | "ch" | "bool" | `<array-type>`
+`<try_catch_stmt>` ::=
+TRY `<stmt>` `<catch_clauses>`
+| TRY `<stmt>` `<catch_clauses>` `<finally_clause>`
 
-`<array-type>` ::= `<type>` "[" `<expression>` "]"
+`<catch_clauses>` ::=
+`<catch_clause>`
+| `<catch_clauses>` `<catch_clause>`
 
-`<expression-statement>` ::= `<expression>` ":"
+`<catch_clause>` ::=
+CATCH LEFT_PARENTHESIS INTEGER RIGHT_PARENTHESIS `<stmt>`
+| CATCH LEFT_PARENTHESIS RIGHT_PARENTHESIS `<stmt>`
 
-`<return-statement>` ::= "return" `<expression>` ":"
+`<finally_clause>` ::= FINALLY `<stmt>`
 
-`<function-declaration>` ::= "method" `<identifier>` 
-                                "(" `<parameter-list>` ")" 
-                                    "->" `<type>` "{" `<statement>`* "}"
+`<throw_stmt>` ::= THROW `<expr>` COLON
 
-`<parameter-list>` ::= `<parameter>` ("," `<parameter>`)* | ε  
-`<parameter>` ::= `<identifier>` "::" `<type>`
+`<stmt_list>` ::=
+`<stmt>`
+| `<stmt_list>` `<stmt>`
 
-`<control-structure>` ::= `<when-statement>` 
-                            | `<unless-statement>`
-                            | `<ctloop>`
-                            | `<cnloop>`
+`<comment>` ::= COMMENTLINE | OPENCOMMENT
 
-`<when-statement>` ::= "when" "(" `<expression>` ")" "{" `<statement>`* "}" 
-                       ["otherwise" "{" `<statement>`* "}"]
-
-`<unless-statement>` ::= "unless" "(" `<expression>` ")" "{" `<statement>`* "}"
-
-`<ctloop>` ::= "ctloop" "(" `<initialization>` ":" `<condition>` ":" `<update>` ")" 
-               "{" `<statement>`* "}"
-
-`<initialization>` ::= `<variable-declaration-without-colon>` 
-                            | `<expression>`
-
-`<variable-declaration-without-colon>` ::= `<identifier>` "::" `<type>` "=" `<expression>`
-
-`<condition>` ::= `<expression>`
-
-`<update>` ::= `<expression>`
-
-`<cnloop>` ::= "cnloop" "(" `<expression>` ")" "{" `<statement>`* "}"
-
-`<expression>` ::= `<literal>` 
-                            | `<identifier>` 
-                            | `<array-literal>` 
-                            | `<binary-expression>` 
-                            |`<unary-expression>` 
-                            | `<function-call>` 
-                            | "(" `<expression>` ")"
-
-`<literal>` ::= `<integer-literal>` 
-                    | `<float-literal>` 
-                    | `<string-literal>` 
-                    | `<char-literal>` 
-                    | `<bool-literal>`
-
-`<integer-literal>` ::= [0-9]+
-
-`<float-literal>` ::= [0-9]+ "." [0-9]*
-
-`<string-literal>` ::= "'" [^']* "'"
-
-`<char-literal>` ::= "\"" [^"] "\""
-
-`<bool-literal>` ::= "True" | "False"
-
-`<array-literal>` ::= "[" `<expression>` ("," `<expression>`)* "]"
-
-`<binary-expression>` ::= `<expression>` `<binary-operator>` `<expression>`
-
-`<binary-operator>` ::= "+" | "-" | "*" | "/" | "+=" | "-=" | "*=" | "/=" | 
-                        ">" | "<" | ">=" | "<=" | "==" | "&&" | "||" | "^^" | "&" | "|" | "^"
-
-`<unary-expression>` ::= `<unary-operator>` `<expression>`
-                            | `<expression>` `<post-unary-operator>`
-
-`<unary-operator>` ::= "+" | "-" | "!"
-
-`<post-unary-operator>` ::= "++" | "--"
-
-`<function-call>` ::= `<identifier>` "(" `<argument-list>` ")"
-
-`<argument-list>` ::= `<expression>` ("," `<expression>`)* | ε
-
-`<io-statement>` ::= "write" "(" `<expression>` ")" ":" | `<identifier>` "=" "input" "(" ")" ":"
-
-`<comment>` ::= `<single-line-comment>` | `<multi-line-comment>`
-
-`<single-line-comment>` ::= "---" [^\n]*
-
-`<multi-line-comment>` ::= "-*" .* "*-"
-
-`<identifier>` ::= [a-zA-Z_][a-zA-Z0-9_]*
-
+`<expr>` ::=
+INTEGER
+| IDENTIFIER
+| MINUS `<expr>`
+| `<expr>` PLUS `<expr>`
+| `<expr>` MINUS `<expr>`
+| `<expr>` MULTIPLE `<expr>`
+| `<expr>` DIVIDE `<expr>`
+| `<expr>` LESSTHAN `<expr>`
+| `<expr>` GREATERTHAN `<expr>`
+| `<expr>` EQUALORGREAT `<expr>`
+| `<expr>` EQUALORLESS `<expr>`
+| `<expr>` ISNOTEQUAL `<expr>`
+| `<expr>` EQUAL `<expr>`
+| LEFT_PARENTHESIS `<expr>` RIGHT_PARENTHESIS
 
 ## Program Execution
+
 To execute your program:
+
 1. Create a file with the `.eon` extension
 
 2. Use the provided Makefile to compile the program
 
 3. Run your program with:
 
-``` bash
+```bash
 
    make
 
